@@ -1,0 +1,27 @@
+{
+  "name": "flow-system",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "biome check",
+    "format": "biome format --write"
+  },
+  "dependencies": {
+    "@douyinfe/semi-icons": "^2.92.2",
+    "@douyinfe/semi-icons-lab": "^2.92.2",
+    "@douyinfe/semi-illustrations": "^2.92.2",
+    "@douyinfe/semi-ui": "^2.92.2",
+    "next": "16.1.6",
+    "react": "19.2.3",
+    "react-dom": "19.2.3"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.2.0",
+    "@tailwindcss/postcss": "^4",
+    "babel-plugin-react-compiler": "1.0.0",
+    "tailwindcss": "^4"
+  }
+}
