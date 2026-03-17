@@ -1,3 +1,5 @@
+import LayoutBody from './layoutBody.js'
+
 import { Bricolage_Grotesque } from 'next/font/google'
 import './globals.css'
 
@@ -14,7 +16,9 @@ export const metadata = {
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
-      <body className={`${font.className} w-screen h-screen bg-white`}>{children}</body>
+      <body className={`${font.className} w-screen h-screen bg-white`}>
+        <LayoutBody>{children}</LayoutBody>
+      </body>
     </html>
   )
 }
