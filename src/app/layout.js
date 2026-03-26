@@ -1,24 +1,16 @@
-import LayoutBody from './layoutBody.js'
+'use client'
 
-import { Bricolage_Grotesque } from 'next/font/google'
+import { store } from '@/store/index'
+import { Provider } from 'react-redux'
+
 import './globals.css'
-
-const font = Bricolage_Grotesque({
-  weight: '400',
-  subsets: ['latin'],
-})
-
-export const metadata = {
-  title: 'Demo App',
-  description: 'this is a demo app',
-}
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en">
-      <body className={`${font.className} w-screen h-screen bg-white`}>
-        <LayoutBody>{children}</LayoutBody>
-      </body>
-    </html>
+    <Provider store={store}>
+      <html lang="en">
+        <body className="w-screen h-screen bg-white">{children}</body>
+      </html>
+    </Provider>
   )
 }

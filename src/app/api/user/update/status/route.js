@@ -9,7 +9,8 @@ export async function POST(request) {
     if (!userId) {
       return NextResponse.json({ code: 401, message: '未授权' }, { status: 401 })
     }
-   // 查询用户信息
+
+        // 查询用户信息
     const [userRows] = await pool.execute('SELECT * FROM sys_user WHERE id = ?', [userId])
     const user = userRows[0]
 
@@ -19,25 +20,23 @@ export async function POST(request) {
     if (user.del_flag === 1) {
       return NextResponse.json({ code: 401, message: '用户已注销' }, { status: 401 })
     }
-    if (user.status === 0) {
-      return NextResponse.json({ code: 401, message: '用户已禁用' }, { status: 401 })
-    }
 
     const body = await request.json()
+    const { id, status } = body
+
+    // 执行更新角色
+    await pool.execute('UPDATE sys_user SET status = ? WHERE id = ?', [status, id])
+
+    // 更新用户信息
+    const updated_at = new Date().toISOString().replace('T', ' ').substring(0, 19)
+    await pool.execute('UPDATE sys_user SET updated_by = ?, updated_at = ? WHERE id = ?', [id, updated_at, id])
 
     return NextResponse.json({
       code: 200,
-      data: body,
-      message: 'success',
+      data: null,
+      message: '状态更新成功',
     })
   } catch (error) {
-    return NextResponse.json(
-      {
-        code: 500,
-        data: null,
-        message: '服务器内部错误',
-      },
-      { status: 500 },
-    )
+    return NextResponse.json({ code: 500, message: '服务器内部错误' }, { status: 500 })
   }
 }

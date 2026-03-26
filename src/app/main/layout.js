@@ -2,10 +2,15 @@
 
 import { usePathname, useRouter } from 'next/navigation'
 import { useMemo, useState } from 'react'
+import { useDispatch } from 'react-redux'
+
+import { setUserInfo } from '@/store/reducers/common'
 
 import { IconBell, IconGithubLogo, IconUserCircle } from '@douyinfe/semi-icons'
 import { IconColorPlatte, IconConfig, IconMarkdown, IconPopover, IconSkeleton, IconTreeSelect } from '@douyinfe/semi-icons-lab'
 import { Dropdown, Nav, Space, Tooltip } from '@douyinfe/semi-ui'
+
+import { localClear, localGetItem } from '@/utils/common'
 
 // 导航数据
 const navItems = [
@@ -14,7 +19,7 @@ const navItems = [
     id: '1',
     itemKey: 'dashboard',
     text: '首页',
-    path: '/dashboard',
+    path: '/main/dashboard',
   },
   {
     pid: '0',
@@ -28,7 +33,7 @@ const navItems = [
         itemKey: 'flow-process',
         text: '流程模块管理',
         icon: <IconPopover />,
-        path: '/workflow/flow-process',
+        path: '/main/workflow/flow-process',
       },
       {
         pid: '2',
@@ -36,7 +41,7 @@ const navItems = [
         itemKey: 'form-element',
         text: '表单元素管理',
         icon: <IconSkeleton />,
-        path: '/workflow/form-element',
+        path: '/main/workflow/form-element',
       },
     ],
   },
@@ -58,28 +63,28 @@ const navItems = [
             id: '3-1-1',
             itemKey: 'company',
             text: '公司管理',
-            path: '/system/organization/company',
+            path: '/main/system/organization/company',
           },
           {
             pid: '3-1',
             id: '3-1-2',
             itemKey: 'department',
             text: '部门管理',
-            path: '/system/organization/department',
+            path: '/main/system/organization/department',
           },
           {
             pid: '3-1',
             id: '3-1-3',
             itemKey: 'position',
             text: '岗位管理',
-            path: '/system/organization/position',
+            path: '/main/system/organization/position',
           },
           {
             pid: '3-1',
             id: '3-1-4',
             itemKey: 'user',
             text: '用户管理',
-            path: '/system/organization/user',
+            path: '/main/system/organization/user',
           },
         ],
       },
@@ -95,21 +100,21 @@ const navItems = [
             id: '3-2-1',
             itemKey: 'role',
             text: '角色管理',
-            path: '/system/access-control/role',
+            path: '/main/system/access-control/role',
           },
           {
             pid: '3-2',
             id: '3-2-2',
             itemKey: 'menu',
             text: '菜单管理',
-            path: '/system/access-control/menu',
+            path: '/main/system/access-control/menu',
           },
           {
             pid: '3-2',
             id: '3-2-3',
             itemKey: 'home-settings',
             text: '首页配置',
-            path: '/system/access-control/home-settings',
+            path: '/main/system/access-control/home-settings',
           },
         ],
       },
@@ -125,28 +130,28 @@ const navItems = [
             id: '3-3-1',
             itemKey: 'dict',
             text: '字典管理',
-            path: '/system/system-config/dict',
+            path: '/main/system/system-config/dict',
           },
           {
             pid: '3-3',
             id: '3-3-2',
             itemKey: 'operation-log',
             text: '操作日志',
-            path: '/system/system-config/operation-log',
+            path: '/main/system/system-config/operation-log',
           },
           {
             pid: '3-3',
             id: '3-3-3',
             itemKey: 'login-log',
             text: '登录记录',
-            path: '/system/system-config/login-log',
+            path: '/main/system/system-config/login-log',
           },
           {
             pid: '3-3',
             id: '3-3-4',
             itemKey: 'database-viewer',
             text: '数据库表',
-            path: '/system/system-config/database-viewer',
+            path: '/main/system/system-config/database-viewer',
           },
         ],
       },
@@ -227,6 +232,9 @@ const findTopLevelParent = (data, targetItem) => {
 export default function LayoutBody({ children }) {
   const pathname = usePathname()
   const router = useRouter()
+  const dispatch = useDispatch()
+
+  const userInfo = localGetItem('LOGINUSER_INFO')
   const [currentItem, setCurrentItem] = useState({})
 
   // 顶部导航数据
@@ -234,6 +242,14 @@ export default function LayoutBody({ children }) {
 
   // 侧边栏导航数据
   const siderItems = useMemo(() => navItems.find((e) => e.itemKey === currentItem.itemKey)?.items || [], [currentItem])
+
+  // 登录用户信息
+  useMemo(() => {
+    if (!userInfo) {
+      router.push('/login')
+    }
+    dispatch(setUserInfo(userInfo))
+  }, [userInfo])
 
   // 监控路由变化
   useMemo(() => {
@@ -245,6 +261,11 @@ export default function LayoutBody({ children }) {
     }
   }, [pathname])
 
+  // 退出
+  const onExit = () => {
+    localClear.all()
+    router.push('/login')
+  }
   // 系统导航点击
   const handleNavClick = (item) => {
     const selectItem = navItems.find((e) => e.itemKey === item.itemKey)
@@ -271,12 +292,12 @@ export default function LayoutBody({ children }) {
         <Nav
           mode="horizontal"
           items={systemItems}
-          selectedKeys={[currentItem?.itemKey || 'dashboard']}
+          selectedKeys={[currentItem?.itemKey]}
           onSelect={handleNavClick}
           header={{
             logo: <IconGithubLogo style={{ fontSize: 36 }} />,
             text: 'GitHub',
-            link: '/dashboard',
+            link: '/main/dashboard',
           }}
         />
         <Space spacing="loose">
@@ -290,7 +311,7 @@ export default function LayoutBody({ children }) {
             position={'bottomRight'}
             menu={[
               { node: 'item', name: '个人设置' },
-              { node: 'item', name: '退出登录' },
+              { node: 'item', name: '退出登录', onClick: () => onExit() },
             ]}>
             <IconUserCircle style={{ fontSize: 30, color: 'rgba(var(--semi-blue-4), 1)' }} />
           </Dropdown>
