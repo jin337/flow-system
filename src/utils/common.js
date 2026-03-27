@@ -2,6 +2,8 @@ import jwt from 'jsonwebtoken'
 
 // 设置数据并附加过期时间戳
 export const localSetItem = (key, value, time) => {
+  if (typeof window === 'undefined') return null // 服务端直接返回
+
   const now = Date.now()
   const item = {
     value: value,
@@ -14,6 +16,8 @@ export const localSetItem = (key, value, time) => {
 
 // 获取数据，如果数据已过期则返回null
 export const localGetItem = (key) => {
+  if (typeof window === 'undefined') return null // 服务端直接返回
+
   const itemStr = localStorage.getItem(key)
   if (!itemStr) {
     return null
@@ -30,6 +34,8 @@ export const localGetItem = (key) => {
 
 // 清空本地数据
 export const localClear = (key) => {
+  if (typeof window === 'undefined') return null // 服务端直接返回
+
   localStorage.removeItem(key)
 }
 localClear.all = () => {
@@ -52,7 +58,6 @@ export const omit = (obj, keys) => {
   keys.forEach((key) => delete result[key])
   return result
 }
-
 
 // 生成 token
 export const generateToken = (payload) => {

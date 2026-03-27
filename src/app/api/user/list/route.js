@@ -1,4 +1,5 @@
 import { pool } from '@/lib/db'
+import { omit } from '@/utils/common'
 import { NextResponse } from 'next/server'
 
 export async function POST(request) {
@@ -39,9 +40,32 @@ export async function POST(request) {
       )
     }
 
+    // 获取分页参数
+    const { 'page-size': pageSize, page } = body
+    const offset = (page - 1) * pageSize
+
+    // 搜索条件
+    let whereClause = 'WHERE del_flag = 0 AND status = 1'
+    if (body.nick_name) {
+      whereClause += ` AND nick_name LIKE '%${body.nick_name}%'`
+    }
+
+    // 查询用户列表
+    const [rows] = await pool.execute(`SELECT * FROM sys_user ${whereClause} LIMIT ?, ?`, [offset, pageSize])
+
+    // 查询总数
+    const [totalRows] = await pool.execute(`SELECT COUNT(*) AS total FROM sys_user ${whereClause}`)
+
+
+    // 返回结果
     return NextResponse.json({
       code: 200,
-      data: body,
+      data: {
+        total: totalRows[0].total,
+        list: omit(rows, ['password', 'del_flag', 'login_ip', 'login_date']),
+        page: page,
+        'page-size': pageSize,
+      },
       message: 'success',
     })
   } catch (error) {

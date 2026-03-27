@@ -10,7 +10,7 @@ export async function POST(request) {
       return NextResponse.json({ code: 401, message: '未授权' }, { status: 401 })
     }
 
-        // 查询用户信息
+    // 查询用户信息
     const [userRows] = await pool.execute('SELECT * FROM sys_user WHERE id = ?', [userId])
     const user = userRows[0]
 
@@ -29,7 +29,11 @@ export async function POST(request) {
 
     // 更新用户信息
     const updated_at = new Date().toISOString().replace('T', ' ').substring(0, 19)
-    await pool.execute('UPDATE sys_user SET updated_by = ?, updated_at = ? WHERE id = ?', [id, updated_at, id])
+    const [result] = await pool.execute('UPDATE sys_user SET updated_by = ?, updated_at = ? WHERE id = ?', [id, updated_at, id])
+
+    if (result.affectedRows === 0) {
+      return NextResponse.json({ code: 404, message: '更新失败' }, { status: 404 })
+    }
 
     return NextResponse.json({
       code: 200,

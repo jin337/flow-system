@@ -9,24 +9,11 @@ export async function POST(request) {
     if (!userId) {
       return NextResponse.json({ code: 401, message: '未授权' }, { status: 401 })
     }
-    // 查询用户信息
-    const [userRows] = await pool.execute('SELECT * FROM sys_user WHERE id = ?', [userId])
-    const user = userRows[0]
-
-    if (!user) {
-      return NextResponse.json({ code: 404, message: '用户不存在' }, { status: 404 })
-    }
-    if (user.del_flag === 1) {
-      return NextResponse.json({ code: 401, message: '用户已注销' }, { status: 401 })
-    }
-    if (user.status === 0) {
-      return NextResponse.json({ code: 401, message: '用户已禁用' }, { status: 401 })
-    }
 
     const body = await request.json()
 
     // 判断必填字段
-    const mustFeields = ['page', 'page-size']
+    const mustFeields = ['name', 'code']
     const missingFields = mustFeields.filter((field) => !body[field])
     if (missingFields.length > 0) {
       return NextResponse.json(
@@ -39,12 +26,23 @@ export async function POST(request) {
       )
     }
 
+
+    // 新建公司
+    const [result] = await pool.query(
+      'INSERT INTO sys_company (name, code, status, created_at, updated_at, updated_by) VALUES (?, ?, ?, ?, ?, ?)',
+      [body.name, body.code, 1, new Date(), new Date(), userId],
+    )
+    if (result.affectedRows === 0) {
+      return NextResponse.json({ code: 404, message: '新增失败' }, { status: 404 })
+    }
+
+    // 返回结果
     return NextResponse.json({
       code: 200,
-      data: body,
-      message: 'success',
+      message: '创建成功',
     })
   } catch (error) {
+    console.log(error)
     return NextResponse.json(
       {
         code: 500,
