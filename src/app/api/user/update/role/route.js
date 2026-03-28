@@ -25,14 +25,17 @@ export async function POST(request) {
     }
 
     const body = await request.json()
-    const { id, role_id } = body
 
     // 执行更新角色
-    await pool.execute('UPDATE sys_user SET role_id = ? WHERE id = ?', [role_id, id])
+    await pool.execute('UPDATE sys_user SET role_id = ? WHERE id = ?', [body.role_id, body.id])
 
     // 更新用户信息
     const updated_at = new Date().toISOString().replace('T', ' ').substring(0, 19)
-    const [result] = await pool.execute('UPDATE sys_user SET updated_by = ?, updated_at = ? WHERE id = ?', [id, updated_at, id])
+    const [result] = await pool.execute('UPDATE sys_user SET updated_by = ?, updated_at = ? WHERE id = ?', [
+      userId,
+      updated_at,
+      body.id,
+    ])
     if (result.affectedRows === 0) {
       return NextResponse.json({ code: 404, message: '更新失败' }, { status: 404 })
     }
@@ -40,7 +43,7 @@ export async function POST(request) {
     // 关联查询角色信息
     const [roleRows] = await pool.execute(
       'SELECT * FROM sys_role WHERE id IN (SELECT role_id FROM sys_user_role WHERE user_id = ?)',
-      [id],
+      [body.id],
     )
     const roleInfo = omit(roleRows, ['del_flag', 'created_at'])
     user.roles = roleInfo
@@ -48,11 +51,10 @@ export async function POST(request) {
     // 登录成功，返回用户信息
     return NextResponse.json({
       code: 200,
-      data: omit(user, ['password', 'del_flag', 'login_ip', 'login_date']),
       message: '角色更新成功',
+      data: omit(user, ['password', 'del_flag', 'login_ip', 'login_date']),
     })
   } catch (error) {
-    console.log(error)
     return NextResponse.json({ code: 500, message: '服务器内部错误' }, { status: 500 })
   }
 }

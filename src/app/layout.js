@@ -9,7 +9,7 @@ export default function RootLayout({ children }) {
   return (
     <Provider store={store}>
       <html lang="en">
-        <body className="w-screen h-screen bg-white">{children}</body>
+        <body className="w-screen h-screen bg-[#E2EEFF]">{children}</body>
       </html>
     </Provider>
   )

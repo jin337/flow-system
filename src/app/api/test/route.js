@@ -1,5 +1,4 @@
 import { pool } from '@/lib/db'
-import { omit } from '@/utils/common'
 import { NextResponse } from 'next/server'
 
 export async function POST(request) {
@@ -9,6 +8,19 @@ export async function POST(request) {
 
     if (!userId) {
       return NextResponse.json({ code: 401, message: '未授权' }, { status: 401 })
+    }
+    // 查询用户信息
+    const [userRows] = await pool.execute('SELECT * FROM sys_user WHERE id = ?', [userId])
+    const user = userRows[0]
+
+    if (!user) {
+      return NextResponse.json({ code: 404, message: '用户不存在' }, { status: 404 })
+    }
+    if (user.del_flag === 1) {
+      return NextResponse.json({ code: 401, message: '用户已注销' }, { status: 401 })
+    }
+    if (user.status === 0) {
+      return NextResponse.json({ code: 401, message: '用户已禁用' }, { status: 401 })
     }
 
     const body = await request.json()
@@ -26,35 +38,13 @@ export async function POST(request) {
       )
     }
 
-    // 获取分页参数
-    const { 'page-size': pageSize, page } = body
-    const offset = (page - 1) * pageSize
-
-    // 搜索条件
-    let whereClause = 'WHERE status = 1'
-    if (body.name) {
-      whereClause += ` AND name LIKE '%${body.name}%'`
-    }
-
-    // 查询用户列表
-    const [rows] = await pool.execute(`SELECT * FROM sys_company ${whereClause} LIMIT ?, ?`, [offset, pageSize])
-
-    // 查询总数
-    const [totalRows] = await pool.execute(`SELECT COUNT(*) AS total FROM sys_company ${whereClause}`)
-
-
-    // 返回结果
     return NextResponse.json({
       code: 200,
       message: 'success',
-      data: {
-        total: totalRows[0].total,
-        list: omit(rows, ['updated_at','updated_by']),
-        page: page,
-        'page-size': pageSize,
-      },
+      data: body,
     })
   } catch (error) {
+    console.log(error)
     return NextResponse.json(
       {
         code: 500,

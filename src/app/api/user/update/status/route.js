@@ -22,14 +22,13 @@ export async function POST(request) {
     }
 
     const body = await request.json()
-    const { id, status } = body
 
     // 执行更新角色
-    await pool.execute('UPDATE sys_user SET status = ? WHERE id = ?', [status, id])
+    await pool.execute('UPDATE sys_user SET status = ? WHERE id = ?', [body.status, body.id])
 
     // 更新用户信息
     const updated_at = new Date().toISOString().replace('T', ' ').substring(0, 19)
-    const [result] = await pool.execute('UPDATE sys_user SET updated_by = ?, updated_at = ? WHERE id = ?', [id, updated_at, id])
+    const [result] = await pool.execute('UPDATE sys_user SET updated_by = ?, updated_at = ? WHERE id = ?', [userId, updated_at, body.id])
 
     if (result.affectedRows === 0) {
       return NextResponse.json({ code: 404, message: '更新失败' }, { status: 404 })
@@ -37,7 +36,6 @@ export async function POST(request) {
 
     return NextResponse.json({
       code: 200,
-      data: null,
       message: '状态更新成功',
     })
   } catch (error) {

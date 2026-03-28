@@ -28,12 +28,11 @@ export async function POST(request) {
 
     // 判断必填字段
     const mustFeields = ['page', 'page-size']
-    const missingFields = mustFeields.filter((field) => !body[field])
+    const missingFields = mustFeields.filter((field) => !(field in body))
     if (missingFields.length > 0) {
       return NextResponse.json(
         {
           code: 400,
-          data: null,
           message: `缺少必填字段: ${missingFields.join(', ')}`,
         },
         { status: 400 },
@@ -60,19 +59,18 @@ export async function POST(request) {
     // 返回结果
     return NextResponse.json({
       code: 200,
+      message: 'success',
       data: {
         total: totalRows[0].total,
         list: omit(rows, ['password', 'del_flag', 'login_ip', 'login_date']),
         page: page,
         'page-size': pageSize,
       },
-      message: 'success',
     })
   } catch (error) {
     return NextResponse.json(
       {
         code: 500,
-        data: null,
         message: '服务器内部错误',
       },
       { status: 500 },

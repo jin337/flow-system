@@ -4,27 +4,25 @@ import { NextResponse } from 'next/server'
 import { generateToken, omit } from '@/utils/common'
 export async function POST(request) {
   try {
-    const { username, password } = await request.json()
+    const body = await request.json()
 
     // 参数验证
-    if (!username || !password) {
+    if (!body.username || !body.password) {
       return NextResponse.json(
         {
           code: 400,
-          data: null,
           message: '用户名和密码不能为空',
         },
         { status: 400 },
       )
     }
     // 查询用户信息
-    const [rows] = await pool.execute(`SELECT * FROM sys_user WHERE username = ?`, [username])
+    const [rows] = await pool.execute(`SELECT * FROM sys_user WHERE username = ?`, [body.username])
 
     if (rows.length === 0) {
       return NextResponse.json(
         {
           code: 401,
-          data: null,
           message: '用户不存在',
         },
         { status: 401 },
@@ -34,11 +32,10 @@ export async function POST(request) {
     const user = rows[0]
 
     // 查询密码
-    if (user.password !== password) {
+    if (user.password !== body.password) {
       return NextResponse.json(
         {
           code: 401,
-          data: null,
           message: '密码错误',
         },
         { status: 401 },
@@ -50,7 +47,6 @@ export async function POST(request) {
       return NextResponse.json(
         {
           code: 403,
-          data: null,
           message: '用户已被禁用',
         },
         { status: 403 },
@@ -86,14 +82,13 @@ export async function POST(request) {
 
     return NextResponse.json({
       code: 200,
-      data: userInfo,
       message: '登录成功',
+      data: userInfo,
     })
   } catch (error) {
     return NextResponse.json(
       {
         code: 500,
-        data: null,
         message: '服务器内部错误',
       },
       { status: 500 },
