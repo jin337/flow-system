@@ -1,4 +1,5 @@
 import { pool } from '@/lib/db'
+import bcrypt from 'bcryptjs'
 import { NextResponse } from 'next/server'
 
 import { generateToken, omit } from '@/utils/common'
@@ -16,8 +17,9 @@ export async function POST(request) {
         { status: 400 },
       )
     }
+
     // 查询用户信息
-    const [rows] = await pool.execute(`SELECT * FROM sys_user WHERE username = ?`, [body.username])
+    const [rows] = await pool.execute(`SELECT * FROM audit_user WHERE username = ?`, [body.username])
 
     if (rows.length === 0) {
       return NextResponse.json(
@@ -31,8 +33,9 @@ export async function POST(request) {
 
     const user = rows[0]
 
-    // 查询密码
-    if (user.password !== body.password) {
+    // 查询密码，使用 compare 比对
+    const isMatch = await bcrypt.compare(body.password, user.password)
+    if (!isMatch) {
       return NextResponse.json(
         {
           code: 401,
@@ -42,43 +45,22 @@ export async function POST(request) {
       )
     }
 
-    // 检查用户状态
-    if (user.status === 0) {
+    // 验证用户是否被删除
+    if (user.deleted === 1) {
       return NextResponse.json(
         {
-          code: 403,
-          message: '用户已被禁用',
+          code: 401,
+          message: '用户已注销',
         },
-        { status: 403 },
+        { status: 401 },
       )
     }
 
-    // 更新用户登录信息
-    const loginDate = new Date().toISOString().replace('T', ' ').substring(0, 19)
-    let loginIp = request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown'
-
-    // 处理 IPv6 映射的 IPv4 地址（如 ::ffff:127.0.0.1）
-    if (loginIp.startsWith('::ffff:')) {
-      loginIp = loginIp.substring(7)
-    }
-    // 如果有多个 IP，取第一个
-    loginIp = loginIp.split(',')[0].trim()
-
-    await pool.execute('UPDATE sys_user SET login_ip = ?, login_date = ? WHERE id = ?', [loginIp, loginDate, user.id])
-
-    // 关联查询角色信息
-    const [roleRows] = await pool.execute(
-      'SELECT * FROM sys_role WHERE id IN (SELECT role_id FROM sys_user_role WHERE user_id = ?)',
-      [user.id],
-    )
-    const roleInfo = omit(roleRows, ['del_flag', 'created_at'])
-    user.roles = roleInfo
-
     // 登录成功，返回用户信息
-    const userInfo = omit(user, ['password', 'del_flag', 'updated_at', 'login_ip', 'login_date'])
+    const userInfo = omit(user, ['password', 'create_time', 'create_by', 'update_time', 'update_by', 'deleted'])
 
     // 生成token
-    userInfo.token = generateToken({ userId: user.id, roleId: user.role_id })
+    userInfo.token = generateToken({ userId: user.id })
 
     return NextResponse.json({
       code: 200,
@@ -86,6 +68,7 @@ export async function POST(request) {
       data: userInfo,
     })
   } catch (error) {
+    console.log(error)
     return NextResponse.json(
       {
         code: 500,

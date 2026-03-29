@@ -1,5 +1,4 @@
 import { pool } from '@/lib/db'
-import bcrypt from 'bcryptjs'
 import { NextResponse } from 'next/server'
 
 export async function POST(request) {
@@ -24,7 +23,7 @@ export async function POST(request) {
     const body = await request.json()
 
     // 判断必填字段
-    const mustFeields = ['username', 'name', 'password', 'status', 'is_admin']
+    const mustFeields = ['page', 'page_size']
     const missingFields = mustFeields.filter((field) => !(field in body))
     if (missingFields.length > 0) {
       return NextResponse.json(
@@ -36,44 +35,52 @@ export async function POST(request) {
       )
     }
 
-    // 检查用户名是否已存在
-    const [existUsers] = await pool.execute('SELECT * FROM audit_user WHERE username = ?', [body.username])
-    if (existUsers.length > 0) {
-      return NextResponse.json(
-        {
-          code: 409,
-          message: '用户名已存在',
-        },
-        { status: 409 },
-      )
-    }
+    // 获取分页参数
+    const { page_size: pageSize, page } = body
+    const offset = (page - 1) * pageSize
 
-    // 密码加密
-    body.password = await bcrypt.hash(body.password, 10)
-
-    // 新增
+    // 查询主表列表
     const [rows] = await pool.execute(
-      'INSERT INTO audit_user (username, name, password, status, is_admin, create_by, create_time) VALUES (?, ?, ?, ?, ?, ?, ?)',
-      [body.username, body.name, body.password, body.status, body.is_admin, userId, new Date()],
+      `
+      SELECT
+        t.*,
+        u.name AS create_by_name
+      FROM audit_shareholder t
+      LEFT JOIN audit_user u ON t.create_by = u.id
+      WHERE t.deleted = 0
+      LIMIT ?, ?`,
+      [offset, pageSize],
     )
 
-    if (rows.affectedRows > 0) {
-      return NextResponse.json({
-        code: 200,
-        message: '新增成功',
-        data: { id: rows.insertId },
-      })
-    } else {
-      return NextResponse.json(
-        {
-          code: 500,
-          message: '新增失败',
-        },
-        { status: 500 },
-      )
-    }
+    // 查询总数
+    const [totalRows] = await pool.execute(`SELECT COUNT(*) AS total FROM audit_shareholder WHERE deleted = 0`)
+
+    // 为每条任务查询对应的审核人
+    const list = await Promise.all(
+      rows.map(async (task) => {
+        const [logs] = await pool.execute(
+          `SELECT * FROM audit_shareholder_log WHERE trustee_id = ? AND deleted = 0 ORDER BY create_time ASC`,
+          [task.id],
+        )
+        return {
+          ...task,
+          logs: logs || [],
+        }
+      }),
+    )
+
+    // 返回结果
+    return NextResponse.json({
+      code: 200,
+      message: 'success',
+      data: {
+        total: totalRows[0].total,
+        list: list,
+        page: page,
+        page_size: pageSize,
+      },
+    })
   } catch (error) {
-    console.log(error)
     return NextResponse.json(
       {
         code: 500,

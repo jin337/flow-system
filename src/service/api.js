@@ -26,15 +26,7 @@ Http.interceptors.response.use(
   },
   (error) => {
     const { response } = error
-    if ([401, 404].includes(response?.data?.code)) {
-      // 无效code,跳转至域名
-      localStorage.clear()
-      sessionStorage.clear()
-      console.log(response?.data.message)
-      setTimeout(() => {
-        window.location.href = window.location.protocol + '//' + window.location.host + '/login'
-      }, 1000)
-    } else Promise.reject(error)
+    return Promise.resolve(response.data)
   },
 )
 

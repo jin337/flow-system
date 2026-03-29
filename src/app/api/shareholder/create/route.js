@@ -1,5 +1,5 @@
 import { pool } from '@/lib/db'
-import bcrypt from 'bcryptjs'
+import dayjs from 'dayjs'
 import { NextResponse } from 'next/server'
 
 export async function POST(request) {
@@ -24,7 +24,7 @@ export async function POST(request) {
     const body = await request.json()
 
     // 判断必填字段
-    const mustFeields = ['username', 'name', 'password', 'status', 'is_admin']
+    const mustFeields = ['create_by', 'motive', 'create_time', 'file_url', 'file_name']
     const missingFields = mustFeields.filter((field) => !(field in body))
     if (missingFields.length > 0) {
       return NextResponse.json(
@@ -36,26 +36,36 @@ export async function POST(request) {
       )
     }
 
-    // 检查用户名是否已存在
-    const [existUsers] = await pool.execute('SELECT * FROM audit_user WHERE username = ?', [body.username])
-    if (existUsers.length > 0) {
-      return NextResponse.json(
-        {
-          code: 409,
-          message: '用户名已存在',
-        },
-        { status: 409 },
-      )
+    // 单独处理日期时间格式转换
+    if (body.create_time !== undefined) {
+      body.create_time = dayjs(body.create_time).format('YYYY-MM-DD HH:mm:ss')
     }
-
-    // 密码加密
-    body.password = await bcrypt.hash(body.password, 10)
 
     // 新增
     const [rows] = await pool.execute(
-      'INSERT INTO audit_user (username, name, password, status, is_admin, create_by, create_time) VALUES (?, ?, ?, ?, ?, ?, ?)',
-      [body.username, body.name, body.password, body.status, body.is_admin, userId, new Date()],
+      'INSERT INTO audit_shareholder (create_by, motive, remark, create_time, file_url,file_name) VALUES (?, ?, ?, ?, ?,?)',
+      [body.create_by, body.motive, body.remark, body.create_time, body.file_url, body.file_name],
     )
+
+    // 插入审核人
+    const organization = 2
+    const [userRowsT1] = await pool.execute('SELECT * FROM audit_user WHERE FIND_IN_SET(?, status) > 0', [organization])
+    // 将用户数据转换为指定格式并插入 audit_shareholder_log 表
+    for (const user of userRowsT1) {
+      const logData = {
+        trustee_id: rows.insertId,
+        audit_id: user.id,
+        audit_name: user.name,
+        organization: organization,
+        autograph: null,
+        status: 1,
+      }
+
+      await pool.execute(
+        'INSERT INTO audit_shareholder_log (audit_id, audit_name, organization, autograph, status, trustee_id,create_time) VALUES (?, ?, ?, ?, ?, ?,?)',
+        [logData.audit_id, logData.audit_name, logData.organization, logData.autograph, logData.status, logData.trustee_id, null],
+      )
+    }
 
     if (rows.affectedRows > 0) {
       return NextResponse.json({

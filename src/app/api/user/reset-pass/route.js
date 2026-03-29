@@ -1,4 +1,5 @@
 import { pool } from '@/lib/db'
+import bcrypt from 'bcryptjs'
 import { NextResponse } from 'next/server'
 export async function POST(request) {
   try {
@@ -20,9 +21,8 @@ export async function POST(request) {
     }
 
     const body = await request.json()
-
     // 判断必填字段
-    const mustFeields = ['id', 'username', 'name']
+    const mustFeields = ['id']
     const missingFields = mustFeields.filter((field) => !(field in body))
     if (missingFields.length > 0) {
       return NextResponse.json(
@@ -34,37 +34,13 @@ export async function POST(request) {
       )
     }
 
-    // 检查用户名是否已存在（排除自身）
-    const [existUsers] = await pool.execute('SELECT * FROM audit_user WHERE username = ? AND id != ?', [body.username, body.id])
+    // 重置密码
+    const defaultPassword = '123456'
+    const hashedPassword = await bcrypt.hash(defaultPassword, 10)
 
-    if (existUsers.length > 0) {
-      return NextResponse.json(
-        {
-          code: 409,
-          message: '用户名已存在',
-        },
-        { status: 409 },
-      )
-    }
-
-    // 更新用户信息
-    const allowedFields = ['username', 'name', 'status']
-    const updateFields = []
-    const updateValues = []
-
-    for (const field of allowedFields) {
-      if (body[field] !== undefined && body[field] !== user[field]) {
-        updateFields.push(`${field} = ?`)
-        updateValues.push(body[field])
-      }
-    }
-
-    if (updateFields.length === 0) {
-      return NextResponse.json({
-        code: 200,
-        message: '没有需要更新的字段',
-      })
-    }
+    // 构建更新字段和值
+    const updateFields = ['password = ?']
+    const updateValues = [hashedPassword]
 
     // 添加审计字段
     updateFields.push('update_time = ?', 'update_by = ?')
@@ -85,6 +61,7 @@ export async function POST(request) {
       message: '更新成功',
     })
   } catch (error) {
+    console.log(error)
     return NextResponse.json(
       {
         code: 500,

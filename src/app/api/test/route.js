@@ -10,23 +10,20 @@ export async function POST(request) {
       return NextResponse.json({ code: 401, message: '未授权' }, { status: 401 })
     }
     // 查询用户信息
-    const [userRows] = await pool.execute('SELECT * FROM sys_user WHERE id = ?', [userId])
+    const [userRows] = await pool.execute('SELECT * FROM audit_user WHERE id = ?', [userId])
     const user = userRows[0]
 
     if (!user) {
       return NextResponse.json({ code: 404, message: '用户不存在' }, { status: 404 })
     }
-    if (user.del_flag === 1) {
+    if (user.deleted === 1) {
       return NextResponse.json({ code: 401, message: '用户已注销' }, { status: 401 })
-    }
-    if (user.status === 0) {
-      return NextResponse.json({ code: 401, message: '用户已禁用' }, { status: 401 })
     }
 
     const body = await request.json()
 
     // 判断必填字段
-    const mustFeields = ['page', 'page-size']
+    const mustFeields = ['page', 'page_size']
     const missingFields = mustFeields.filter((field) => !(field in body))
     if (missingFields.length > 0) {
       return NextResponse.json(

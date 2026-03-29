@@ -11,23 +11,20 @@ export async function POST(request) {
       return NextResponse.json({ code: 401, message: '未授权' }, { status: 401 })
     }
     // 查询用户信息
-    const [userRows] = await pool.execute('SELECT * FROM sys_user WHERE id = ?', [userId])
+    const [userRows] = await pool.execute('SELECT * FROM audit_user WHERE id = ?', [userId])
     const user = userRows[0]
 
     if (!user) {
       return NextResponse.json({ code: 404, message: '用户不存在' }, { status: 404 })
     }
-    if (user.del_flag === 1) {
+    if (user.deleted === 1) {
       return NextResponse.json({ code: 401, message: '用户已注销' }, { status: 401 })
-    }
-    if (user.status === 0) {
-      return NextResponse.json({ code: 401, message: '用户已禁用' }, { status: 401 })
     }
 
     const body = await request.json()
 
     // 判断必填字段
-    const mustFeields = ['page', 'page-size']
+    const mustFeields = ['page', 'page_size']
     const missingFields = mustFeields.filter((field) => !(field in body))
     if (missingFields.length > 0) {
       return NextResponse.json(
@@ -40,21 +37,20 @@ export async function POST(request) {
     }
 
     // 获取分页参数
-    const { 'page-size': pageSize, page } = body
+    const { page_size: pageSize, page } = body
     const offset = (page - 1) * pageSize
 
     // 搜索条件
-    let whereClause = 'WHERE del_flag = 0 AND status = 1'
+    let whereClause = 'WHERE deleted = 0'
     if (body.nick_name) {
       whereClause += ` AND nick_name LIKE '%${body.nick_name}%'`
     }
 
     // 查询用户列表
-    const [rows] = await pool.execute(`SELECT * FROM sys_user ${whereClause} LIMIT ?, ?`, [offset, pageSize])
+    const [rows] = await pool.execute(`SELECT * FROM audit_user ${whereClause} LIMIT ?, ?`, [offset, pageSize])
 
     // 查询总数
-    const [totalRows] = await pool.execute(`SELECT COUNT(*) AS total FROM sys_user ${whereClause}`)
-
+    const [totalRows] = await pool.execute(`SELECT COUNT(*) AS total FROM audit_user ${whereClause}`)
 
     // 返回结果
     return NextResponse.json({
@@ -62,9 +58,9 @@ export async function POST(request) {
       message: 'success',
       data: {
         total: totalRows[0].total,
-        list: omit(rows, ['password', 'del_flag', 'login_ip', 'login_date']),
+        list: omit(rows, ['password', 'deleted', 'update_time', 'update_by']),
         page: page,
-        'page-size': pageSize,
+        page_size: pageSize,
       },
     })
   } catch (error) {

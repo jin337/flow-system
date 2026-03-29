@@ -1,5 +1,5 @@
 import { pool } from '@/lib/db'
-import bcrypt from 'bcryptjs'
+import { omit } from '@/utils/common'
 import { NextResponse } from 'next/server'
 
 export async function POST(request) {
@@ -24,7 +24,7 @@ export async function POST(request) {
     const body = await request.json()
 
     // 判断必填字段
-    const mustFeields = ['username', 'name', 'password', 'status', 'is_admin']
+    const mustFeields = ['id']
     const missingFields = mustFeields.filter((field) => !(field in body))
     if (missingFields.length > 0) {
       return NextResponse.json(
@@ -36,44 +36,28 @@ export async function POST(request) {
       )
     }
 
-    // 检查用户名是否已存在
-    const [existUsers] = await pool.execute('SELECT * FROM audit_user WHERE username = ?', [body.username])
-    if (existUsers.length > 0) {
-      return NextResponse.json(
-        {
-          code: 409,
-          message: '用户名已存在',
-        },
-        { status: 409 },
-      )
+    // 查询单条数据
+    const [rows] = await pool.execute('SELECT * FROM audit_shareholder WHERE id = ?', [body.id])
+    let info = rows[0]
+
+    //查询单条数据
+    if (info && info.create_by) {
+      const [userRows] = await pool.execute('SELECT id, name FROM audit_user WHERE id = ?', [info.create_by])
+      const createUser = userRows[0]
+      info.create_by_name = createUser?.name || null
     }
 
-    // 密码加密
-    body.password = await bcrypt.hash(body.password, 10)
+    // 查询log
+    const [logRows] = await pool.execute('SELECT * FROM audit_shareholder_log WHERE trustee_id = ? ORDER BY id DESC', [body.id])
+    info.logs = logRows
 
-    // 新增
-    const [rows] = await pool.execute(
-      'INSERT INTO audit_user (username, name, password, status, is_admin, create_by, create_time) VALUES (?, ?, ?, ?, ?, ?, ?)',
-      [body.username, body.name, body.password, body.status, body.is_admin, userId, new Date()],
-    )
-
-    if (rows.affectedRows > 0) {
-      return NextResponse.json({
-        code: 200,
-        message: '新增成功',
-        data: { id: rows.insertId },
-      })
-    } else {
-      return NextResponse.json(
-        {
-          code: 500,
-          message: '新增失败',
-        },
-        { status: 500 },
-      )
-    }
+    // 返回结果
+    return NextResponse.json({
+      code: 200,
+      message: 'success',
+      data: omit(info, ['password', 'deleted', 'update_time', 'update_by']),
+    })
   } catch (error) {
-    console.log(error)
     return NextResponse.json(
       {
         code: 500,
