@@ -54,7 +54,8 @@ export async function POST(request) {
     const body = await request.json()
 
     // 判断必填字段
-    const mustFeields = ['id', 'audit_id', 'organization', 'trustee_id']
+    const qid = body?.organization === 1 ? 'trustee_id' : 'shareholder_id'
+    const mustFeields = ['id', 'audit_id', 'organization', qid]
     const missingFields = mustFeields.filter((field) => !(field in body))
     if (missingFields.length > 0) {
       return NextResponse.json(
@@ -73,7 +74,7 @@ export async function POST(request) {
     }
 
     // 更新内容
-    const allowedFields = ['autograph', 'status']
+    const allowedFields = ['autograph', 'status', 'remark']
     const updateFields = []
     const updateValues = []
 
@@ -108,6 +109,18 @@ export async function POST(request) {
 
     if (result.affectedRows === 0) {
       return NextResponse.json({ code: 404, message: '更新失败' }, { status: 404 })
+    }
+
+    // 查找全部用户是否都已经签批
+    const [logs] = await pool.execute(
+      `SELECT COUNT(1) as total FROM ${body.organization === 1 ? 'audit_trustee_log' : 'audit_shareholder_log'} WHERE trustee_id = ? AND status=1`,
+      [body.trustee_id],
+    )
+    if (logs[0].total === 0) {
+      await pool.execute(
+        `UPDATE ${body.organization === 1 ? 'audit_trustee' : 'audit_shareholder'} SET status = 3 WHERE id = ?`,
+        [body.trustee_id],
+      )
     }
 
     return NextResponse.json({

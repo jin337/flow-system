@@ -24,7 +24,7 @@ export async function POST(request) {
     const body = await request.json()
 
     // 判断必填字段
-    const mustFeields = ['create_by', 'motive', 'create_time', 'file_url', 'file_name']
+    const mustFeields = ['create_by', 'motive', 'create_time', 'file_list']
     const missingFields = mustFeields.filter((field) => !(field in body))
     if (missingFields.length > 0) {
       return NextResponse.json(
@@ -41,14 +41,33 @@ export async function POST(request) {
       body.create_time = dayjs(body.create_time).format('YYYY-MM-DD HH:mm:ss')
     }
 
+    // 生成单据号 order_id
+    const orderId = `${dayjs().format('YYYYMMDDHHmmss')}`
     // 新增
     const [rows] = await pool.execute(
-      'INSERT INTO audit_trustee (create_by, motive, remark, create_time, file_url,file_name) VALUES (?, ?, ?, ?, ?,?)',
-      [body.create_by, body.motive, body.remark, body.create_time, body.file_url, body.file_name],
+      'INSERT INTO audit_trustee (create_by, motive, remark, create_time,order_id) VALUES (?, ?, ?, ?, ?)',
+      [body.create_by, body.motive, body.remark, body.create_time, orderId],
     )
 
-    // 插入审核人
     const organization = 1
+    //插入附件表audit_files
+    for (const file of body.file_list) {
+      const fileData = {
+        mid: rows.insertId,
+        file_name: file.name,
+        file_url: file.url,
+        organization: organization,
+      }
+
+      await pool.execute('INSERT INTO audit_files (mid, file_name, file_url,organization) VALUES (?, ?, ?,?)', [
+        fileData.mid,
+        fileData.file_name,
+        fileData.file_url,
+        fileData.organization,
+      ])
+    }
+
+    // 插入审核人
     const [userRowsT1] = await pool.execute('SELECT * FROM audit_user WHERE FIND_IN_SET(?, status) > 0', [organization])
     // 将用户数据转换为指定格式并插入 audit_trustee_log 表
     for (const user of userRowsT1) {
@@ -62,8 +81,17 @@ export async function POST(request) {
       }
 
       await pool.execute(
-        'INSERT INTO audit_trustee_log (audit_id, audit_name, organization, autograph, status, trustee_id,create_time) VALUES (?, ?, ?, ?, ?, ?,?)',
-        [logData.audit_id, logData.audit_name, logData.organization, logData.autograph, logData.status, logData.trustee_id, null],
+        'INSERT INTO audit_trustee_log (audit_id, audit_name, organization, autograph, status, trustee_id,create_time,remark) VALUES (?, ?, ?, ?, ?, ?,?,?)',
+        [
+          logData.audit_id,
+          logData.audit_name,
+          logData.organization,
+          logData.autograph,
+          logData.status,
+          logData.trustee_id,
+          null,
+          null,
+        ],
       )
     }
 

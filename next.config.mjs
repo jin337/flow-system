@@ -1,6 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  allowedDevOrigins: ['local-origin.dev', '*.local-origin.dev', '192.168.0.110', '192.168.0.*'],
+  allowedDevOrigins: ['*', '*.local-origin.dev', '192.168.0.110', '192.168.0.*', '192.168.0.33'],
   // 启用 React 18
   reactCompiler: true,
   // 需要转译的包
@@ -10,7 +10,7 @@ const nextConfig = {
     return [
       {
         source: '/',
-        destination: '/main/user',
+        destination: '/login',
         permanent: false,
       },
     ]

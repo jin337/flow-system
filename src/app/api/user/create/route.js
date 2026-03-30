@@ -53,8 +53,8 @@ export async function POST(request) {
 
     // 新增
     const [rows] = await pool.execute(
-      'INSERT INTO audit_user (username, name, password, status, is_admin, create_by, create_time) VALUES (?, ?, ?, ?, ?, ?, ?)',
-      [body.username, body.name, body.password, body.status, body.is_admin, userId, new Date()],
+      'INSERT INTO audit_user (username, name, password, status, is_admin, create_by, create_time,trustee_type) VALUES (?, ?, ?, ?, ?, ?, ?,?)',
+      [body.username, body.name, body.password, body.status, body.is_admin, userId, new Date(), body.trustee_type],
     )
 
     if (rows.affectedRows > 0) {

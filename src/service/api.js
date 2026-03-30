@@ -9,7 +9,7 @@ const Http = axios.create({
 // 请求拦截器
 Http.interceptors.request.use(
   (config) => {
-    const Authorization = localGetItem('LOGINUSER_INFO')
+    const Authorization = localGetItem('LOGINUSER_INFO') || localGetItem('LOGINUSER_INFO_MOBILE')
     if (Authorization) {
       config.headers.Token = Authorization.token
     }

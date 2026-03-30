@@ -22,7 +22,7 @@ export async function POST(request) {
     const body = await request.json()
 
     // 判断必填字段
-    const mustFeields = ['id', 'username', 'name']
+    const mustFeields = ['id', 'username', 'name', 'status']
     const missingFields = mustFeields.filter((field) => !(field in body))
     if (missingFields.length > 0) {
       return NextResponse.json(
@@ -48,14 +48,21 @@ export async function POST(request) {
     }
 
     // 更新用户信息
-    const allowedFields = ['username', 'name', 'status']
+    const allowedFields = ['username', 'name', 'status', 'is_admin', 'trustee_type']
     const updateFields = []
     const updateValues = []
 
     for (const field of allowedFields) {
-      if (body[field] !== undefined && body[field] !== user[field]) {
+      let fieldValue = body[field]
+
+      // 当状态不是启用时，不包含1情况
+      if (field === 'trustee_type' && !body.status.includes('1')) {
+        fieldValue = 0
+      }
+
+      if (fieldValue !== undefined && fieldValue !== user[field]) {
         updateFields.push(`${field} = ?`)
-        updateValues.push(body[field])
+        updateValues.push(fieldValue)
       }
     }
 
@@ -65,7 +72,6 @@ export async function POST(request) {
         message: '没有需要更新的字段',
       })
     }
-
     // 添加审计字段
     updateFields.push('update_time = ?', 'update_by = ?')
     updateValues.push(new Date(), userId)
@@ -79,12 +85,19 @@ export async function POST(request) {
     if (result.affectedRows === 0) {
       return NextResponse.json({ code: 404, message: '更新失败，用户不存在' }, { status: 404 })
     }
-    const [newUserRows] = await pool.execute('SELECT * FROM audit_user WHERE id = ?', [body.id])
+
+    // 更新审核人员信息audit_name
+    const auditTrusteeSql = `UPDATE audit_trustee_log SET audit_name = ? WHERE audit_id = ?`
+    await pool.execute(auditTrusteeSql, [body.name, body.id])
+    const auditshareholderSql = `UPDATE audit_shareholder_log SET audit_name = ? WHERE audit_id = ?`
+    await pool.execute(auditshareholderSql, [body.name, body.id])
+
     return NextResponse.json({
       code: 200,
       message: '更新成功',
     })
   } catch (error) {
+    console.log(error)
     return NextResponse.json(
       {
         code: 500,

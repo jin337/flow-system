@@ -24,7 +24,7 @@ export async function POST(request) {
     const body = await request.json()
 
     // 判断必填字段
-    const mustFeields = ['id', 'motive', 'file_url', 'logs']
+    const mustFeields = ['id', 'motive', 'file_list', 'logs']
     const missingFields = mustFeields.filter((field) => !(field in body))
     if (missingFields.length > 0) {
       return NextResponse.json(
@@ -37,7 +37,7 @@ export async function POST(request) {
     }
 
     // 更新内容
-    const allowedFields = ['motive', 'file_url', 'file_name', 'remark']
+    const allowedFields = ['motive', 'remark']
     const updateFields = []
     const updateValues = []
 
@@ -70,6 +70,31 @@ export async function POST(request) {
 
     const sql = `UPDATE audit_shareholder SET ${updateFields.join(', ')} WHERE id = ?`
     const [result] = await pool.execute(sql, updateValues)
+
+    // 更新文件
+    const [fileResult] = await pool.execute(`DELETE FROM audit_files WHERE mid = ?`, [body.id])
+
+    if (fileResult.affectedRows === 0) {
+      return NextResponse.json({ code: 404, message: '更新失败' }, { status: 404 })
+    }
+    const organization = 2
+    //插入附件表audit_files
+    for (const file of body.file_list) {
+      const fileData = {
+        mid: rows.insertId,
+        file_name: file.name,
+        file_url: file.url,
+        organization: organization,
+        remark: file.remark,
+      }
+
+      await pool.execute('INSERT INTO audit_files (mid, file_name, file_url,organization) VALUES (?, ?, ?,?)', [
+        fileData.mid,
+        fileData.file_name,
+        fileData.file_url,
+        fileData.organization,
+      ])
+    }
 
     if (result.affectedRows === 0) {
       return NextResponse.json({ code: 404, message: '更新失败' }, { status: 404 })

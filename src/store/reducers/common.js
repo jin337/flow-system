@@ -2,9 +2,10 @@ import { createSlice } from '@reduxjs/toolkit'
 
 const initialState = {
   userInfo: {},
+  userInfoMobile: {},
   // 审核状态
   LOG_STATUS_MAP: {
-    1: '待审核',
+    1: '待签批',
     2: '同意',
     3: '不同意',
     4: '弃权',
@@ -12,7 +13,7 @@ const initialState = {
   // 任务状态
   ORDER_STATUS_MAP: {
     1: '待发布',
-    2: '审核中',
+    2: '待签批',
     3: '已完成',
     4: '已撤回',
   },
@@ -30,9 +31,12 @@ export const common = createSlice({
     setUserInfo: (state, action) => {
       state.userInfo = action.payload
     },
+    setUserInfoMobile: (state, action) => {
+      state.userInfoMobile = action.payload
+    },
   },
 })
 
-export const { setUserInfo } = common.actions
+export const { setUserInfo, setUserInfoMobile } = common.actions
 
 export default common.reducer

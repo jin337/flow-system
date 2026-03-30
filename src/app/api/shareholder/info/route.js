@@ -48,8 +48,11 @@ export async function POST(request) {
     }
 
     // 查询log
-    const [logRows] = await pool.execute('SELECT * FROM audit_shareholder_log WHERE trustee_id = ? ORDER BY id DESC', [body.id])
+    const [logRows] = await pool.execute('SELECT * FROM audit_shareholder_log WHERE shareholder_id = ? ORDER BY id DESC', [body.id])
     info.logs = logRows
+
+    const [files] = await pool.execute(`SELECT * FROM audit_files WHERE mid = ? AND organization=2`, [body.id])
+    info.files = files
 
     // 返回结果
     return NextResponse.json({

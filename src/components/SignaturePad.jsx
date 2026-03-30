@@ -18,7 +18,7 @@ const SignaturePad = forwardRef((props, ref) => {
     // 判断是否为空
     isEmpty: () => {
       return signatureRef.current?.isEmpty()
-    }
+    },
   }))
 
   return (
@@ -26,8 +26,8 @@ const SignaturePad = forwardRef((props, ref) => {
       <SignatureCanvas
         ref={signatureRef}
         canvasProps={{
-          className: 'signatureCanvas w-full h-25',
-          style: { width: '100%', height: '100px' }
+          className: 'signatureCanvas w-full h-50!',
+          style: { width: '100%', height: '100px' },
         }}
         {...props}
       />

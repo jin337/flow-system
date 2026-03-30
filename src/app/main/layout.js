@@ -25,13 +25,13 @@ const navItems = [
   {
     id: '2',
     itemKey: 'trustee',
-    text: '董事会审批',
+    text: '董事会文件签批',
     path: '/main/trustee',
   },
   {
     id: '3',
     itemKey: 'shareholder',
-    text: '股东会审批',
+    text: '股东会文件签批',
     path: '/main/shareholder',
   },
 ]
@@ -104,14 +104,17 @@ export default function LayoutBody({ children }) {
     <section className="w-full h-full flex flex-col overflow-hidden">
       <header className="h-15 px-6 bg-[#3D6EE6] flex items-center justify-between">
         <Image src={logo} alt="logo" className="w-auto! h-[50%] cursor-pointer" onClick={() => router.push('/main/user')} />
-        <Dropdown
-          position={'bottomRight'}
-          menu={[
-            { node: 'item', name: '修改密码', onClick: () => openReset() },
-            { node: 'item', name: '退出登录', onClick: () => onExit() },
-          ]}>
-          <IconUserCircle style={{ fontSize: 30, color: '#fff' }} />
-        </Dropdown>
+        <div className='flex items-center gap-2'>
+          <span className='text-sm text-white'>{userInfo?.name}</span>
+          <Dropdown
+            position={'bottomRight'}
+            menu={[
+              { node: 'item', name: '修改密码', onClick: () => openReset() },
+              { node: 'item', name: '退出登录', onClick: () => onExit() },
+            ]}>
+            <IconUserCircle style={{ fontSize: 30, color: '#fff' }} />
+          </Dropdown>
+        </div>
       </header>
       <section className="flex-1 h-[calc(100%-60px)] flex">
         <aside className="h-full">

@@ -2,6 +2,7 @@
 
 import Http from '@/service/api'
 import { Button, Form, Modal, Space, Table, Toast } from '@douyinfe/semi-ui'
+import dayjs from 'dayjs'
 import { useEffect, useRef, useState } from 'react'
 
 export default function Page() {
@@ -20,18 +21,18 @@ export default function Page() {
       render: (text, record, index) => index + 1,
     },
     {
-      title: '用户',
+      title: '用户名',
       dataIndex: 'name',
     },
     {
-      title: '账号',
+      title: '登录账号',
       dataIndex: 'username',
     },
     {
       title: '身份类型',
       dataIndex: 'status',
       render: (text) => {
-        const statusMap = { 0: '管理员', 1: '董事', 2: '股东', 3: '董秘' }
+        const statusMap = { 0: '管理员', 1: '董事会成员', 2: '股东会成员', 3: '董秘' }
 
         // 处理空值
         if (!text && text !== 0) return '-'
@@ -47,11 +48,25 @@ export default function Page() {
       },
     },
     {
+      title: '董事会职务',
+      dataIndex: 'trustee_type',
+      render: (text) => {
+        const statusMap = { 1: '董事', 2: '董事长' }
+        return statusMap[text]
+      },
+    },
+    {
       title: '是否管理员',
       dataIndex: 'is_admin',
       width: 110,
       align: 'center',
       render: (text) => (!!text ? '是' : '否'),
+    },
+    {
+      title: '创建时间',
+      dataIndex: 'create_time',
+      width: 160,
+      render: (text) => (text ? dayjs(text).format('YYYY-MM-DD HH:mm:ss') : '-'),
     },
     {
       title: '操作',
@@ -65,9 +80,11 @@ export default function Page() {
           <Button theme="borderless" type="primary" onClick={() => resetRow(record)}>
             重置密码
           </Button>
-          <Button theme="borderless" type="danger" onClick={() => DeleteRow(record)}>
-            删除
-          </Button>
+          {record.username !== 'admin' && (
+            <Button theme="borderless" type="danger" onClick={() => DeleteRow(record)}>
+              删除
+            </Button>
+          )}
         </Space>
       ),
     },
@@ -133,6 +150,7 @@ export default function Page() {
   // 新建/编辑
   const EditRow = (record) => {
     setVisible(true)
+
     const value = record?.id
       ? {
           ...record,
@@ -141,6 +159,7 @@ export default function Page() {
       : { is_admin: 0 }
 
     setRowInfo(value)
+
     setTimeout(() => {
       formApiRef.current.setValues(value)
     }, 100)
@@ -185,49 +204,68 @@ export default function Page() {
         onCancel={() => setVisible(false)}
         onOk={handleSubmit}>
         <Form autoComplete="off" getFormApi={(api) => (formApiRef.current = api)} onSubmit={handleSubmit}>
-          <Form.Input field="name" label="用户" rules={[{ required: true, message: '请输入用户名' }]} />
-          <Form.Input
-            field="username"
-            label="账号"
-            rules={[{ required: true, message: '请输入账号' }]}
-            disabled={!!rowInfo?.id && rowInfo?.username === 'admin'}
-          />
-          {!rowInfo?.id && (
-            <Form.Input field="password" label="密码" type="password" rules={[{ required: true, message: '请输入密码' }]} />
+          {({ formState }) => (
+            <>
+              <Form.Input field="name" label="用户名" rules={[{ required: true, message: '请输入用户名' }]} />
+              <Form.Input
+                field="username"
+                label="登录账号"
+                rules={[{ required: true, message: '请输入账号' }]}
+                disabled={!!rowInfo?.id && rowInfo?.username === 'admin'}
+              />
+              {!rowInfo?.id && (
+                <Form.Input field="password" label="密码" type="password" rules={[{ required: true, message: '请输入密码' }]} />
+              )}
+              {rowInfo?.username !== 'admin' && (
+                <>
+                  <Form.CheckboxGroup
+                    label="身份类型"
+                    field="status"
+                    direction="horizontal"
+                    options={[
+                      { label: '董事会成员', value: 1 },
+                      { label: '股东会成员', value: 2 },
+                      { label: '董秘', value: 3 },
+                    ]}
+                    rules={[{ required: true }]}
+                    validate={(e) => {
+                      if (!e || e.length === 0) {
+                        return '请选择身份类型'
+                      }
+                      if (e.includes(3) && e.length > 1) {
+                        return '董秘不能与其他身份同时选择'
+                      }
+                      return null
+                    }}
+                    trigger={['blur', 'change']}
+                  />
+                  {formState.values?.status?.includes(1) ? (
+                    <Form.RadioGroup
+                      label="董事会职务"
+                      field="trustee_type"
+                      initValue={rowInfo?.trustee_type}
+                      direction="horizontal"
+                      disabled={[0, '0'].includes(rowInfo?.status)}
+                      options={[
+                        { value: 1, label: '董事' },
+                        { value: 2, label: '董事长' },
+                      ]}
+                    />
+                  ) : null}
+                  <Form.RadioGroup
+                    label="是否是管理员"
+                    field="is_admin"
+                    direction="horizontal"
+                    disabled={[0, '0'].includes(rowInfo?.status)}
+                    options={[
+                      { value: 0, label: '否' },
+                      { value: 1, label: '是' },
+                    ]}
+                  />
+                </>
+              )}
+            </>
           )}
-          {rowInfo?.username !== 'admin' && (
-            <Form.CheckboxGroup
-              label="身份类型"
-              field="status"
-              direction="horizontal"
-              options={[
-                { label: '董事', value: 1 },
-                { label: '股东', value: 2 },
-                { label: '董秘', value: 3 },
-              ]}
-              rules={[{ required: true }]}
-              validate={(e) => {
-                if (!e || e.length === 0) {
-                  return '请选择身份类型'
-                }
-                if (e.includes(3) && e.length > 1) {
-                  return '董秘不能与其他身份同时选择'
-                }
-                return null
-              }}
-              trigger={['blur', 'change']}
-            />
-          )}
-          <Form.RadioGroup
-            label="是否是管理员"
-            field="is_admin"
-            direction="horizontal"
-            disabled={[0, '0'].includes(rowInfo?.status)}
-            options={[
-              { value: 0, label: '否' },
-              { value: 1, label: '是' },
-            ]}
-          />
         </Form>
       </Modal>
     </>

@@ -1,11 +1,13 @@
 'use client'
 
-import Http from '@/service/api'
-import { IconUpload } from '@douyinfe/semi-icons'
-import { Button, Col, Descriptions, Form, Modal, Row, SideSheet, Space, Table, Timeline, Toast } from '@douyinfe/semi-ui'
 import dayjs from 'dayjs'
 import { useEffect, useRef, useState } from 'react'
 import { useSelector } from 'react-redux'
+
+import Http from '@/service/api'
+
+import { IconUpload } from '@douyinfe/semi-icons'
+import { Button, Col, Descriptions, Form, Modal, Row, SideSheet, Space, Table, Timeline, Toast } from '@douyinfe/semi-ui'
 
 import PdfViewer from '@/components/PdfViewer'
 
@@ -30,15 +32,14 @@ export default function Page() {
       render: (text, record, index) => index + 1,
     },
     {
+      title: '单据号',
+      dataIndex: 'order_id',
+      width: 190,
+    },
+    {
       title: '主题',
       dataIndex: 'motive',
       ellipsis: true,
-    },
-    {
-      title: '文件',
-      dataIndex: 'file',
-      width: 70,
-      render: (text, record) => <PdfViewer url={record.file_url} />,
     },
     {
       title: '状态',
@@ -55,7 +56,7 @@ export default function Page() {
       title: '发起日期',
       dataIndex: 'create_time',
       width: 160,
-      render: (text) => dayjs(text).format('YYYY-MM-DD HH:mm:ss'),
+      render: (text) => text && dayjs(text).format('YYYY-MM-DD'),
     },
     {
       title: '操作',
@@ -183,19 +184,18 @@ export default function Page() {
   // 新建/编辑
   const EditRow = (record) => {
     setVisible(true)
-
     const value = record?.id
       ? {
           ...record,
-          files: [
-            {
-              name: record.file_name,
-              url: record.file_url,
-            },
-          ],
+          files: record.files.map((e) => ({ ...e, url: e.file_url, name: e.file_name })),
           loglist: record?.logs?.map((e) => e.id) || [],
         }
-      : { create_by_name: userInfo.name }
+      : {
+          create_by_name: userInfo.name,
+          create_by: userInfo.id,
+          create_time: dayjs().format('YYYY-MM-DD'),
+        }
+
     setRowInfo(value)
     setTimeout(() => {
       formApiRef.current.setValues(value)
@@ -203,42 +203,47 @@ export default function Page() {
   }
 
   // 文件上传
-  const onSuccess = ({ data }) => {
+  const onChange = (file, fileList) => {
     setRowInfo({
       ...rowInfo,
-      files: [
-        {
-          name: data.name,
-          url: data.url,
-        },
-      ],
+      files: fileList,
     })
-    Toast.success('上传成功')
   }
 
-  // 上传失败
-  const onError = () => {
-    Toast.error('上传失败')
-  }
   // 提交
   const handleSubmit = () => {
     formApiRef.current?.validate().then(async (values) => {
-      const files = values?.files[0]?.response?.data || values.files[0]
+      let list = []
+      // 文件内容
+      values?.files.forEach((element) => {
+        if (element.response) {
+          list.push({
+            name: element.response?.data.name,
+            url: element.response?.data.url,
+          })
+        } else {
+          list.push({
+            name: element.file_name,
+            url: element.file_url,
+          })
+        }
+      })
+
       const params = {
         ...rowInfo,
         ...values,
-        file_name: files?.name,
-        file_url: files?.url,
+        file_list: list,
       }
+
       let url = '/api/trustee/create'
       if (rowInfo?.id) {
-        params.id = rowInfo.id
         url = '/api/trustee/update'
-      } else {
-        params.create_by = userInfo.id
       }
+
+
       delete params.files
       delete params.loglist
+
       const { code, message } = await Http.post(url, params)
       if (code === 200) {
         Toast.success(message)
@@ -254,13 +259,14 @@ export default function Page() {
     <>
       <div className="mb-5 flex justify-end">
         <Button type="primary" theme="solid" onClick={() => EditRow()}>
-          新增审批
+          新增签批
         </Button>
       </div>
       <Table columns={columns} dataSource={tableData} bordered pagination={false} />
 
+      {/* 编辑弹窗 */}
       <Modal
-        title={rowInfo?.id ? '编辑' : '新建'}
+        title={rowInfo?.id ? '编辑' : '新增'}
         centered
         visible={visible}
         onCancel={() => setVisible(false)}
@@ -272,10 +278,9 @@ export default function Page() {
             </Col>
             <Col span={12} offset={2}>
               <Form.DatePicker
-                type="dateTime"
                 field="create_time"
-                label="发起时间"
-                rules={[{ required: true, message: '请选择时间' }]}
+                label="发起日期"
+                rules={[{ required: true, message: '请选择日期' }]}
               />
             </Col>
           </Row>
@@ -288,16 +293,15 @@ export default function Page() {
           <Form.Upload
             field="files"
             label="文件"
-            action="/api/update/pdf"
-            limit={1}
-            accept={'.pdf,.PDF'}
-            headers={{ token: userInfo.token }}
             dragMainText={'点击上传文件或拖拽文件到这里'}
             dragSubText="仅支持pdf"
             rules={[{ required: true, message: '请上传文件' }]}
+            action="/api/update/pdf"
+            headers={{ token: userInfo?.token }}
+            accept={'.pdf,.PDF'}
             name="file"
-            onSuccess={onSuccess}
-            onError={onError}>
+            multiple
+            onChange={onChange}>
             <Button icon={<IconUpload />} theme="light">
               点击上传
             </Button>
@@ -311,13 +315,14 @@ export default function Page() {
         <div className="mb-6">
           <Descriptions
             data={[
+              { key: '单据号', value: viewInfo.order_id },
               { key: '发起人', value: viewInfo.create_by_name },
-              { key: '发起日期', value: dayjs(viewInfo.create_time).format('YYYY-MM-DD HH:mm:ss') },
+              { key: '发起日期', value: viewInfo?.create_time && dayjs(viewInfo.create_time).format('YYYY-MM-DD') },
               { key: '状态', value: ORDER_STATUS_MAP[viewInfo.status] },
               { key: '主题', value: viewInfo.motive },
               {
                 key: '文件',
-                value: <PdfViewer url={viewInfo.file_url} />,
+                value: <PdfViewer list={viewInfo.files} />,
               },
               { key: '备注', value: viewInfo.remark },
             ]}
@@ -341,8 +346,8 @@ export default function Page() {
                     )
                   }>
                   <div className="flex items-center justify-between">
-                    <div className="text-(--semi-color-text-2)">{ORGANIZATION_MAP[item?.organization]}审批</div>
-                    <div>{dayjs(viewInfo.create_time).format('YYYY-MM-DD HH:mm:ss')}</div>
+                    <div className="text-(--semi-color-text-2)">{ORGANIZATION_MAP[item?.organization]}签批</div>
+                    <div>{item?.create_time && dayjs(item.create_time).format('YYYY-MM-DD HH:mm:ss')}</div>
                   </div>
                   <div>
                     {item.audit_name}（{LOG_STATUS_MAP[item?.status]}）

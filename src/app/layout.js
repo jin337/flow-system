@@ -10,7 +10,7 @@ export default function RootLayout({ children }) {
     <Provider store={store}>
       <html lang="en">
         <head>
-          <title>审核系统</title>
+          <title>签批系统</title>
         </head>
         <body className="w-screen h-screen bg-white">{children}</body>
       </html>

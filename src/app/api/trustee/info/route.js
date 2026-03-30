@@ -51,6 +51,9 @@ export async function POST(request) {
     const [logRows] = await pool.execute('SELECT * FROM audit_trustee_log WHERE trustee_id = ? ORDER BY id DESC', [body.id])
     info.logs = logRows
 
+    const [files] = await pool.execute(`SELECT * FROM audit_files WHERE mid = ? AND organization=1`, [body.id])
+    info.files = files
+
     // 返回结果
     return NextResponse.json({
       code: 200,
